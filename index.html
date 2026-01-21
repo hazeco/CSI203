@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="#" />
+    <title>Camera Access Control</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        #myVideo {
+            transform: scaleX(-1);
+        }
+
+        .recording-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: none;
+            background: #ef4444;
+            animation: pulse-blink 1s infinite;
+        }
+
+        @keyframes pulse-blink {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        /* Camera status dot (idle + blinking when camera on) */
+        .camera-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #cbd5e1; /* slate-300 */
+            transition: background 200ms ease, box-shadow 200ms ease, transform 200ms ease;
+        }
+
+        .camera-dot.blink-green {
+            background: #34d399; /* emerald-400 */
+            box-shadow: 0 0 12px rgba(52,211,153,0.35);
+            animation: slow-breathe 2.4s infinite;
+        }
+
+        @keyframes slow-breathe {
+            0% { opacity: 0.45; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.15); }
+            100% { opacity: 0.45; transform: scale(1); }
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-primary:active:not(:disabled) {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+
+<body id="main_body" class="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-2xl">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-slate-900 tracking-tight">Camera Access</h1>
+            <p class="text-slate-600 mt-2">Professional camera control system</p>
+        </div>
+
+        <!-- Main Card -->
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+            <!-- Video Container -->
+            <div class="relative bg-black aspect-video">
+                <video id="myVideo" autoplay playsinline class="w-full h-full"></video>
+            </div>
+
+            <!-- Status Bar -->
+            <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div id="cameraDot" class="w-3 h-3 rounded-full camera-dot bg-slate-300" aria-hidden="true"></div>
+                    <span class="text-sm font-medium text-slate-700">Camera Control</span>
+                </div>
+                <div id="recordStatus" class="recording-dot"></div>
+            </div>
+
+            <!-- Controls -->
+            <div class="p-6">
+                <div class="grid grid-cols-2 gap-3">
+                    <!-- Start Button -->
+                    <button id="startBtn" onclick="startCamera()" 
+                        class="btn-primary px-4 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg flex items-center justify-center gap-2 disabled:bg-emerald-400">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path>
+                            <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"></path>
+                        </svg>
+                        Start
+                    </button>
+
+                    <!-- Stop Button -->
+                    <button id="stopBtn" onclick="stopCamera()" disabled
+                        class="btn-primary px-4 py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg flex items-center justify-center gap-2 disabled:bg-red-400">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4 2a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm0 2h12v12H4V4z" clip-rule="evenodd"></path>
+                        </svg>
+                        Stop
+                    </button>
+
+                    <!-- Take Photo Button -->
+                    <button id="snapBtn" onclick="takePhoto()" disabled
+                        class="btn-primary px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg flex items-center justify-center gap-2 disabled:bg-blue-400">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path>
+                        </svg>
+                        Photo
+                    </button>
+
+                    <!-- Record Button -->
+                    <button id="recordBtn" onclick="toggleRecord()" disabled
+                        class="btn-primary px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg flex items-center justify-center gap-2 disabled:bg-amber-400">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <circle cx="10" cy="10" r="7" fill="currentColor"></circle>
+                        </svg>
+                        Record
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Info -->
+        <div class="mt-6 text-center text-sm text-slate-500">
+            <p>Built with professional camera access control</p>
+        </div>
+    </div>
+
+    <canvas id="canvas" style="display:none;"></canvas>
+    <script>
+        let stream = null;
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        const videoElement = document.getElementById('myVideo');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const snapBtn = document.getElementById('snapBtn');
+        const recordBtn = document.getElementById('recordBtn');
+        const recordStatus = document.getElementById('recordStatus');
+        const cameraDot = document.getElementById('cameraDot');
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                videoElement.srcObject = stream;
+                toggleButtons(true);
+                // show blinking green status when camera is active
+                if (cameraDot) cameraDot.classList.add('blink-green');
+                console.log("camera started");
+            } catch (err) {
+                alert("cannot access camera/microphone: " + err);
+            }
+        }
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                videoElement.srcObject = null;
+                toggleButtons(false);
+                // restore idle color when camera is stopped
+                if (cameraDot) cameraDot.classList.remove('blink-green');
+                console.log("camera stopped");
+            }
+        }
+        function takePhoto() {
+            const canvas = document.getElementById('canvas');
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+            const link = document.createElement('a');
+            link.download = `photo_${Date.now()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+        function toggleRecord() {
+            if (mediaRecorder && mediaRecorder.state === "recording") {
+                mediaRecorder.stop();
+                recordBtn.innerText = "Record Video";
+                recordStatus.style.display = "none";
+            } else {
+                recordedChunks = [];
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) recordedChunks.push(e.data);
+                };
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `video_${Date.now()}.webm`;
+                    link.click();
+                };
+                mediaRecorder.start();
+                recordBtn.innerText = "Stop Recording";
+                recordStatus.style.display = "block";
+            }
+        }
+        function toggleButtons(isRunning) {
+            startBtn.disabled = isRunning;
+            stopBtn.disabled = !isRunning;
+            snapBtn.disabled = !isRunning;
+            recordBtn.disabled = !isRunning;
+        }
+    </script>
+</body>
+
+</html>
